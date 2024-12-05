@@ -3,9 +3,13 @@ import json
 import os
 
 from progress import Progress
-from thread import Thread, ThreadStatus, IpElement, IpStatus
-from iptools import intToIP
+from iptools import intToIP, IpElement, IpStatus
 from math import ceil
+
+# * threading 라이브러리를 사용하는 스레드를 사용할경우 다음줄을 주석 해제 하세요
+from thread_thread import Thread
+# * asyncio 라이브러리를 사용하는 스레드를 사용할경우 다음줄을 주석 해제 하세요 (현재는 작동 안함)
+# from thread_asyncio import Thread
 
 
 

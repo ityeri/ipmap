@@ -21,7 +21,7 @@ divisionUnit = 256^3 # 파일 하나당 주소 몇게 저장할지를 설정
 resultPath = 'result'
 
 # 헥톡ㅌ탄 설정
-ipScanner = IPscanner(0, 0x0_0800_0000, threadCount, ipPerThread)
+ipScanner = IPscanner(0, 0x0_0001_0000, threadCount, ipPerThread)
 ipScannerMonitor = IPscannerMonitor(screen, ipScanner)
 
 
