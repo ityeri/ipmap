@@ -21,10 +21,10 @@ class IpElement():
         self.result: bool | None = None
     
     @property
-    def ipStr(self) -> str: return intToIP(self.address)
+    def strAdd(self) -> str: return intToIP(self.address)
     
     @property
-    def ifDone(self) -> str: return 
+    def isDone(self) -> str: return self.status == IpStatus.COMPLETE
 
 def maping(pos: list[int, int, int, int]):
     """IP 주소를 2D 평면상에 맵핑하는 함수입니다.

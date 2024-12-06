@@ -6,9 +6,9 @@ from progress import Progress
 from iptools import intToIP, IpElement, IpStatus
 from math import ceil
 
-# * threading 라이브러리를 사용하는 스레드를 사용할경우 다음줄을 주석 해제 하세요
+# * threading 라이브러리를 사용하는 스레드를 사용할경우 다음 줄을 주석 해제 하세요
 from thread_thread import Thread
-# * asyncio 라이브러리를 사용하는 스레드를 사용할경우 다음줄을 주석 해제 하세요 (현재는 작동 안함)
+# * asyncio 라이브러리를 사용하는 스레드를 사용할경우 다음 줄을 주석 해제 하세요 (현재는 작동 안함)
 # from thread_asyncio import Thread
 
 
@@ -57,21 +57,13 @@ class IPscanner:
         새로운 스레드를 시작하거나 완료된 스레드의 결과를 적용하고 재실행하는  함수
         '''
 
-
+        if self.isDone == True: return
 
         # 스레 하나하나 반복
         for thread in self.threads:
 
             # 스레드가 준비, 시작할수 있는 상태일시
             if thread.isWating:
-                # 스레드가 실행 완료된 상태라면 결과 적용 (안해도됨)
-                # if thread.status == ThreadStatus.DONE:
-                #     result = thread.getResult()
-                #     for ipAdd, response in result.items():
-                #         self.ipResult[ipAdd] = response
-                #         if response != None:
-                #             self.ipStatus[ipAdd] = IpStatus.COMPLETE
-                
                 if self.setThreadTask(thread):
                     thread.run()
 
@@ -80,14 +72,20 @@ class IPscanner:
             self.timer += self.progressDisplayInterval
             self.displayProgress()
         
+        # 작업 완료 여부 확인
+        remmingIps = [... for ip in self.ipAdds.values() if not ip.isDone]
         
-        if self.isDone:
+        # 남은 IP 가 없다면 완료된거인
+        if len(remmingIps) == 0:
+            self.isDone = True
+            
             print("")
             print("======================================")
             print("모든 작업이 완?료되었습니다. 모든 스레드를 종료합니다")
             print("======================================\n")
             time.sleep(1)
             self.waitAllThread()
+
 
 
     def displayProgress(self):
@@ -100,18 +98,6 @@ class IPscanner:
         
         print(f'전송 속도: {self.progressDisplayInterval}초당 {speed}개')
         print(f"진행도: {self.globalProgress.count}/{self.globalProgress.maxCount} |{'■'*displayProgress}{' '*invertDisplayProgress}|\n")
-
-
-
-    # def applyResult(self, threadIndex: int):
-    #     thread: Thread = self.threads[threadIndex]
-
-    #     if thread.status == ThreadStatus.DONE:
-    #         result = thread.getResult()
-    #         for ipAdd, response in result.items():
-    #             self.ipResult[ipAdd] = response
-    #             if response != None:
-    #                 self.ipStatus[ipAdd] = IpStatus.COMPLETE
 
 
 
@@ -131,9 +117,8 @@ class IPscanner:
                     break
         
         # self.ipAdds 의 끝까지 순회했는데도 하나도 못찾았을경우
-        # 완료됬아!
-        if 0 == len(ipAddsToAssign): 
-            self.isDone = True
+        # 작업 설정 실패를 알림
+        if 0 == len(ipAddsToAssign):
             return False
         else: 
             thread.setTask(ipAddsToAssign)
@@ -149,17 +134,15 @@ class IPscanner:
 
         for i, thread in enumerate(self.threads):
             print(f'{len(self.threads)}/{i}번 쓰레드를 중단중...')
-            thread.stop()
-
-        # for i, thread in enumerate(self.threads):
-        #     print(f'{len(self.threads)}/{i}번 쓰레드가 끝나길 대기중...')
-        #     thread.wait()
-
+            try: thread.stop()
+            except: pass
 
         print("")
         print("======================================")
         print("모든 쓰레드를 중단했습니다.")
         print("======================================\n")
+
+
 
     def waitAllThread(self):
         print("======================================")
@@ -170,22 +153,6 @@ class IPscanner:
         for i, thread in enumerate(self.threads):
             print(f'{len(self.threads)}/{i}번 쓰레드를 대기중...')
             thread.wait()
-
-
-    # def applyAllThread(self):
-    #     print("======================================")
-    #     print("모든 스레드의 결과를 적용합니다...")
-    #     print("======================================\n")
-
-    #     for i in range(len(self.threads)):
-    #         print(f'{len(self.threads)}/{i}번 쓰레드 결과 적용중...')
-    #         self.applyResult(i)
-
-
-    #     print("")
-    #     print("======================================")
-    #     print("모든 쓰레드의 결과를 적용했습니다")
-    #     print("======================================\n")
 
 
 
@@ -202,14 +169,14 @@ class IPscanner:
             startIndex = i * divisionUnit
             endIndex = (i+1) * divisionUnit
 
-            startIp = intToIP(startIndex).replace('.', '-')
-            endIp = intToIP(endIndex).replace('.', '-')
-
-            print(f"{startIp} ~ {endIp} 대역의 결과 저장중... ({i}/{fileCount} 번째 파일)")
-
             # 범위의 끝 인덱스가 self.ipAdds 의 범위를 벗어날 경우 안쪽으로 조정
             if endIndex > len(self.ipAdds):
                 endIndex = len(self.ipAdds)
+
+            startIp = intToIP(startIndex).replace('.', ',')
+            endIp = intToIP(endIndex).replace('.', ',')
+
+            print(f"{startIp} ~ {endIp} 대역의 결과 저장중... ({i}/{fileCount} 번째 파일)")
             
             partData: dict[str, bool | None] = {}
             doneIpCount = 0
@@ -220,34 +187,10 @@ class IPscanner:
                     doneIpCount += 1
             
             if 0 < doneIpCount:
-                with open(f"{startIp}~{endIp}-.json", 'w') as f:
+                with open(f"{startIp} ~ {endIp}--.json", 'w') as f:
                     json.dump(partData, f, indent=4)
 
         print("")
         print("======================================")
         print("모든 결과를 저장했습니다")
         print("======================================\n")
-
-
-
-    # def monitorThreadStatus(self) -> None:
-    #     doneIps = 0
-    #     for ipStatus in self.ipStatus.values():
-    #         if ipStatus == ipStatus.COMPLETE:
-    #             doneIps += 1
-
-    #     print('\n\n\n')
-    #     print('===========================================')
-    #     print(f'총 스래드 갯수: {self.threadCount}')
-    #     print(f'총 IP {len(self.ipStatus)}개중 {doneIps}개 완료')
-    #     print('===========================================\n\n')
-
-
-    #     for i, thread in enumerate(self.threads):
-    #         # print('================================\n')
-    #         # print(f'{i}번 쓰레드')
-    #         print('진행도 |'
-    #               + ":"*int(thread.getProgress()[0] * 20) 
-    #               + " "*(20-int(thread.getProgress()[0] * 20)) + '|')
-            
-    #         # print(' ')

@@ -3,7 +3,7 @@ import pygame
 from blackboard.main import *
 from blackboard.main import camera
 
-from thread import Thread
+from thread_thread import Thread
 from iptools import *
 from ip_scanner import IPscanner
 

@@ -19,9 +19,10 @@ ipPerThread = 64
 
 divisionUnit = 256^3 # 파일 하나당 주소 몇게 저장할지를 설정
 resultPath = 'result'
+saveWhether = True
 
 # 헥톡ㅌ탄 설정
-ipScanner = IPscanner(0, 0x0_0001_0000, threadCount, ipPerThread)
+ipScanner = IPscanner(0, 0x0_0000_1000, threadCount, ipPerThread)
 ipScannerMonitor = IPscannerMonitor(screen, ipScanner)
 
 
@@ -35,10 +36,10 @@ while on:
 
             ipScanner.stopAllThread()
 
-            isExit = input("결과를 저장하시겠습니까? (Y/n) :")
-            if isExit == 'Y' or isExit == 'y':
-                ipScanner.saveResult(resultPath, divisionUnit)
-
+            isExit = input("결과를 저장하시겠습니까? (Y y / N n) :")
+            if isExit == 'N' or isExit == 'n':
+                saveWhether = False
+        
         ipScannerMonitor.event(event)
     
     ipScannerMonitor.update(dt)
@@ -51,4 +52,4 @@ while on:
 
 pygame.quit()
 
-ipScanner.saveResult('result', 256^2)
+if saveWhether: ipScanner.saveResult('result', 256**3)
