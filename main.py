@@ -22,9 +22,10 @@ resultPath = 'result'
 saveWhether = True
 
 # 헥톡ㅌ탄 설정
-ipScanner = IPscanner(0, 0x0_0000_1000, threadCount, ipPerThread)
+ipScanner = IPscanner(0, 0x1_00_00_00_00, threadCount, ipPerThread)
 ipScannerMonitor = IPscannerMonitor(screen, ipScanner)
 
+ipScanner.loadResult(resultPath)
 
 while on:
     dt = clk.tick(fps)

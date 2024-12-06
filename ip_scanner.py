@@ -1,9 +1,10 @@
 import time
 import json
 import os
+import glob
 
 from progress import Progress
-from iptools import intToIP, IpElement, IpStatus
+from iptools import intToIP, IPtoInt, IpElement, IpStatus
 from math import ceil
 
 # * threading 라이브러리를 사용하는 스레드를 사용할경우 다음 줄을 주석 해제 하세요
@@ -14,24 +15,21 @@ from thread_thread import Thread
 
 
 class IPscanner:
-    def __init__(self, ipScope1: int, ipScope2: int,
+    def __init__(self, scanScope1: int, scanScope2: int,
                  threadCount: int, addPerThread: int,
                  data: dict[int, bool | None] | None=None) -> None:
         
-        # self.ipStatus: dict[int, int] = dict.fromkeys(
-        #     list(range(ipScope1, ipScope2)), ipStatus.WAIT)
+        self.scanScope1: int = scanScope1
+        self.scanScope2: int = scanScope2
         
-        # self.ipResult: dict[int, bool | None] = dict.fromkeys(
-        #     list(range(ipScope1, ipScope2)), None)
-        
-        self.ipAdds: dict[int, IpElement] = {ipAdd: IpElement(ipAdd) for ipAdd in range(ipScope1, ipScope2)}
+        self.ipAdds: dict[int, IpElement] = {ipAdd: IpElement(ipAdd) for ipAdd in range(scanScope1, scanScope2)}
 
         # 미리 입력된 데이터를 ipResult 에 적용
         if data != None:
             for ip, result in data.items():
                 # 미리 입력받은 데이터의 ip 주소가 
                 # 스캐너의 주소 범위에 포함되는 경우
-                if ipScope1 <= ip < ipScope2:
+                if scanScope1 <= ip < scanScope2:
                     self.ipAdds[ip].result = result
                     if result is not None:
                         self.ipAdds[ip].status = IpStatus.COMPLETE
@@ -51,6 +49,8 @@ class IPscanner:
 
         self.timer: float = time.time()
         self.progressDisplayInterval: int = 1
+
+
 
     def update(self):
         '''
@@ -86,18 +86,28 @@ class IPscanner:
             time.sleep(1)
             self.waitAllThread()
 
-
-
     def displayProgress(self):
         speed = self.globalProgress.count - self.oldProgress
         self.oldProgress = self.globalProgress.count
 
-        progressBarSize = int(os.get_terminal_size().columns * 0.9)
+        print(f'전송 속도: {self.progressDisplayInterval}초당 {speed}개')
+
+        maxCountStr = str(self.globalProgress.maxCount)
+        progressStr = str(self.globalProgress.count)
+        progressStr = ' ' * (len(maxCountStr) - len(progressStr)) + progressStr
+
+        message = f"진행도: {progressStr}/{maxCountStr} | "
+
+        # {'■'*displayProgress}{' '*invertDisplayProgress}|\n
+
+
+        progressBarSize = int(os.get_terminal_size().columns - len(message) - 6)
         displayProgress = int(progressBarSize * self.globalProgress.countRatio)
         invertDisplayProgress = progressBarSize - displayProgress
-        
-        print(f'전송 속도: {self.progressDisplayInterval}초당 {speed}개')
-        print(f"진행도: {self.globalProgress.count}/{self.globalProgress.maxCount} |{'■'*displayProgress}{' '*invertDisplayProgress}|\n")
+
+        message += f"{'■'*displayProgress}{' '*invertDisplayProgress} |\n"
+
+        print(message)
 
 
 
@@ -142,8 +152,6 @@ class IPscanner:
         print("모든 쓰레드를 중단했습니다.")
         print("======================================\n")
 
-
-
     def waitAllThread(self):
         print("======================================")
         print("모든 쓰레드가 끝나길 대기합니다...")
@@ -156,14 +164,55 @@ class IPscanner:
 
 
 
+    def loadResult(self, path: str):
+        print("======================================")
+        print(f'"{path}"에서 불러옵니다...')
+        print("======================================\n")
+
+
+        filePaths = glob.glob(f'{path}/*,*,*,* ~ *,*,*,*--.json')
+        
+        for i, filePath in enumerate(filePaths):
+            fileName = os.path.basename(filePath)
+            print(f'"{fileName}" 파일 불러오는중... ({i+1}/{len(filePaths)} 번째 파일)')
+            
+            scopeStr = fileName.split(" ~ ")
+            scope1 = IPtoInt(scopeStr[0].replace(',', '.'))
+            scope2 = IPtoInt(scopeStr[1].split('--')[0].replace(',', '.'))
+
+            # 불러오는 파일의 ip 대역이 이 스캐너의 ip 대역에 포함되지 않을경우
+            if  (scope1 < self.scanScope1 and scope2 < self.scanScope1) or\
+                (self.scanScope2 < scope1 and self.scanScope2 < scope2): continue
+
+            with open(filePath, 'r') as f:
+                loadedData: dict[str, bool | None] = json.load(f)
+
+
+
+            for ipStr, result in loadedData.items():
+                ipAdd = IPtoInt(ipStr)
+                if ipAdd < self.scanScope1 or self.scanScope2 < ipAdd: continue
+
+
+                self.ipAdds[ipAdd].result = result
+
+                if result != None: 
+                    self.ipAdds[ipAdd].status = IpStatus.COMPLETE
+                    self.globalProgress.count += 1
+
+
+
+        print("")
+        print("======================================")
+        print("불러오기 완료")
+        print("======================================\n")
+
     def saveResult(self, path: str, divisionUnit: int):
         print("======================================")
         print(f'"{path}"에 결과를 저장합니다...')
         print("======================================\n")
 
         fileCount = ceil(len(self.ipAdds)/divisionUnit)
-
-        os.chdir(path)
 
         for i in range(fileCount):
             startIndex = i * divisionUnit
@@ -176,7 +225,7 @@ class IPscanner:
             startIp = intToIP(startIndex).replace('.', ',')
             endIp = intToIP(endIndex).replace('.', ',')
 
-            print(f"{startIp} ~ {endIp} 대역의 결과 저장중... ({i}/{fileCount} 번째 파일)")
+            print(f"{startIp} ~ {endIp} 대역의 결과 저장중... ({i+1}/{fileCount} 번째 파일)")
             
             partData: dict[str, bool | None] = {}
             doneIpCount = 0
@@ -187,7 +236,7 @@ class IPscanner:
                     doneIpCount += 1
             
             if 0 < doneIpCount:
-                with open(f"{startIp} ~ {endIp}--.json", 'w') as f:
+                with open(f"{path}/{startIp} ~ {endIp}--.json", 'w') as f:
                     json.dump(partData, f, indent=4)
 
         print("")

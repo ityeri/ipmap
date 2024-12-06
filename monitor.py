@@ -32,7 +32,8 @@ class ThreadMonitor(shape):
 
     def draw(self, surface: pygame.Surface, viewCamera: camera) -> None:
 
-        progress = self.thread.getProgress()[0]
+        try: progress = self.thread.getProgress()[0]
+        except: progress = 0
 
         mainColor  = (
             self.mainColor[0] * progress,
@@ -52,7 +53,6 @@ class ThreadMonitor(shape):
         pygame.draw.rect(surface, mainColor , rect)
 
         displayProgress = int(progress * rectWidth)
-        subProgress = int((progress * rectWidth - displayProgress) * rectHeight)
 
         # 원래 선 그리는건데 속도를 위해 사각형으로
         pygame.draw.rect(surface, self.progressColor, 
